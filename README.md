@@ -1,5 +1,5 @@
 ![](https://img.shields.io/badge/Foundry-v0.8.6-informational)
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/A0A55CQPF)!
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/A0A55CQPF)
 
 <!--- Downloads @ Latest Badge -->
 <!--- replace <user>/<repo> with your username/repository -->
@@ -18,7 +18,7 @@ But you have bougth all the books on R20 and still like the Charactermancer.
 
 If you know how to use VTTES, this module will help you import characters from R20 to Foundry.
 
-[vttes-to-foundry-0 0 1](https://user-images.githubusercontent.com/8818232/126902529-d173afdf-cb7b-44f8-9bb9-e3b63d1f6e81.gif)
+![vttes-to-foundry-0 0 1](https://user-images.githubusercontent.com/8818232/126902529-d173afdf-cb7b-44f8-9bb9-e3b63d1f6e81.gif)
 
 Warning : this module is still in development, not all features are available.
 
