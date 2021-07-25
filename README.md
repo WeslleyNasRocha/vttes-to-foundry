@@ -33,3 +33,5 @@ Warning : this module is still in development, not all features are available.
 - Multiclasses
 
 ## Known bugs
+
+- Size info is wrong (always set to gargantuan)
