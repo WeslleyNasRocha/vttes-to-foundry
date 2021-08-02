@@ -2,16 +2,17 @@
     "name": "vttes-to-foundry",
     "title": "VTTES to Foundry",
     "description": "",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "library": "false",
     "manifestPlusVersion": "1.0.0",
     "minimumCoreVersion": "0.8.8",
     "compatibleCoreVersion": "0.8.8",
+    "author" : "SetaSensei#1102",
     "authors": [
         {
-            "name": "The League of Extraordinary FVTT Developers",
-            "url": "https://github.com/League-of-Foundry-Developers",
-            "discord": "discordID#0001"
+            "name": "SetaSensei",
+            "url": "https://github.com/SetaSensei",
+            "discord": "SetaSensei#1102"
         }
     ],
     "dependencies": [],
