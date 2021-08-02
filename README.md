@@ -24,14 +24,25 @@ Warning : this module is still in development, not all features are available.
 
 ## Changelog
 
-- First version
+- Stable version : adds full character import based on compendium available items.
 
 ## Features to come next
 
-- Inventory items
-- Spells
-- Multiclasses
+- Items re-creation
 
 ## Known bugs
 
-- Size info is wrong (always set to gargantuan)
+- Some features imported might trigger id error when edited or when trying to be deleted (they cannot be)
+
+## Stability advice
+
+In order to keep the character sheet as stable as possible, I advise you to follow these stapes :
+
+- Create a new actor
+- Import from a VTTES JSON file into the created actor
+- Export the character sheet (from the Foundry "Export Data" option)
+- Delete the first actor
+- Recreate another one
+- Import from the foundry JSON file
+
+It should fix the inconsistent id errors I need to work on.
