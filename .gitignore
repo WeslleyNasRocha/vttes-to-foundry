@@ -90,5 +90,8 @@ lerna-debug.log
 .DS_Store
 Thumbs.db
 
+# test data
+/test-data/*
+
 #bak files
 *.bak
