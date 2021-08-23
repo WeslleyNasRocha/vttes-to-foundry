@@ -1,9 +1,9 @@
 import * as moduleLib from "./moduleLib.js";
 import ItemFormat from "./itemFormat.js";
-const numberRegex = /\d+/g;
 
 export default class ActorImporter {
-
+    
+    numberRegex = /\d+/g;
 
     constructor(actor) {
         this.actor = actor
@@ -161,9 +161,31 @@ export default class ActorImporter {
     async createItem(item, options) {
         var desc = await renderTemplate('modules/vttes-to-foundry/templates/itemDescription.hbs', 
         {
-            properties: item.itemproperties.current,
-            content: item.itemcontent.current
+            properties: item.itemproperties ? item.itemproperties.current : '',
+            content: item.itemcontent ? item.itemcontent.current : ''
         })
+
+        var features = options.features
+        var damageParts = []
+        var versatile = ''
+        if (item.hasattack && item.hasattack.current == 1) {
+            var attackIds = item.itemattackid.current.split(',')
+
+            for (let idx = 0; idx < attackIds.length; idx++) {
+                const attackId = attackIds[idx].substring(1);
+                var attackData = features['attack'][attackId]
+                if (attackData.versatile_alt.current == 1) {
+                    versatile = `${attackData.dmgbase.current} + @mod`
+                    continue
+                }
+                damageParts.push([
+                    `${attackData.dmgbase.current} + @mod`,
+                    attackData.dmgtype.current
+                    ])
+            }
+            
+            console.log(attackData)
+        }
          
         var newItem = {
             name: item[options.keyName].current,
@@ -173,8 +195,8 @@ export default class ActorImporter {
                     value: desc
                 },
                 source: 'Imported by vttes to Foundry',
-                quantity: item.itemcount.current,
-                weight: item.itemweight.current,
+                quantity: item.itemcount ? item.itemcount.current : 1,
+                weight: item.itemweight ? item.itemweight.current : 0,
                 rarity: "common",
             }
         }
@@ -421,7 +443,7 @@ export default class ActorImporter {
 
         if (darkvisionEntry) {
             var darkVisionDesc = darkvisionEntry.data.description.value
-            var regexOutput = numberRegex.exec(darkVisionDesc);
+            var regexOutput = this.numberRegex.exec(darkVisionDesc);
             if (regexOutput && regexOutput.length > 0) {
                 return parseInt(regexOutput[0])
             }

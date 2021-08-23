@@ -12,7 +12,7 @@ export default class PCActorImport extends ActorImporter {
 
         var abilities = this.getAbilities();
         var traits = await this.embedFromCompendiums('feat', 'traits', {createAction: this.createFeat})
-        var inventory = await this.embedFromCompendiums('equipment', 'inventory', {keyName: 'itemname', createAction: this.createItem})
+        var inventory = await this.embedFromCompendiums('equipment', 'inventory', {keyName: 'itemname', createAction: this.createItem, features: this.repeatingFeatures})
         var spells = await this.getAndPrepareSpells();
         
         await this.setActorMainClass();

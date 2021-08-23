@@ -1,4 +1,4 @@
-const numberRegex = /\d+/g;
+
 
 import {
     vttLog,
@@ -34,7 +34,7 @@ const importToActor = async function importToActor(content, actor, compendiums =
         await imp.import(content, compendiums)
     }
 
-    ui.notifications.info(`Import successfull actor ${actor.name} is playable`)
+    ui.notifications.info(`Import successfull ! Actor ${actor.name} is playable`)
 
 }
 

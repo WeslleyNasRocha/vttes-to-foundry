@@ -18,6 +18,9 @@ export default class NPCActorImport extends ActorImporter {
         }
 
         var monsterFeatures = await game.packs.get('dnd5e.monsterfeatures')
+        var items = this.getCompendiumByType('weapon')
+        
+        var spells = await this.getAndPrepareSpells()
 
         moduleLib.vttLog('Iterating on Features ...')
         var embedFeaturesQueue = []
@@ -31,9 +34,11 @@ export default class NPCActorImport extends ActorImporter {
         var {
             embedQueue: embedActionsQueue,
             creationQueue: creationActionQueue
-        } = await this.embedFromRepeating([monsterFeatures], 'npcaction', this.updateDamage)
+        } = await this.embedFromRepeating([monsterFeatures, ...items], 'npcaction', this.updateDamage)
 
-        var allItemsToCreate = [...embedFeaturesQueue, ...embedActionsQueue];
+        var allItemsToCreate = [...embedFeaturesQueue, ...embedActionsQueue, ...spells];
+
+        var darkvision = this.getDarkvision(embedFeaturesQueue)
 
         await this.actor.createEmbeddedDocuments("Item", allItemsToCreate);
 
@@ -54,6 +59,7 @@ export default class NPCActorImport extends ActorImporter {
             data: {
                 skills: skills,
                 abilities: abilities,
+                attributes: this.getNPCAttributes(),
                 details: this.getNPCDetails(alignment, type),
                 traits: {
                     size: size,
@@ -98,43 +104,7 @@ export default class NPCActorImport extends ActorImporter {
         }
     }
 
-    async embedFromRepeating(compendiums, repeatingKey, transformAction) {
-        var features = this.repeatingFeatures[repeatingKey]
-        var featureIds = this.repeatingFeaturesIds[repeatingKey]
-        var embedQueue = []
-        var creationQueue = []
-
-        if (featureIds) {
-            for (let featIndex = 0; featIndex < featureIds.length; featIndex++) {
-                const featId = featureIds[featIndex]
-                const currFeat = features[featId]
-                var found = false
-
-                for (let cpdIdx = 0; cpdIdx < compendiums.length; cpdIdx++) {
-                    const compendium = compendiums[cpdIdx];
-                    var mfIndex = compendium.index.find(m => m.name.toLowerCase() === currFeat.name.current.toLowerCase())
-                    if (mfIndex) {
-                        var feature = await compendium.getDocument(mfIndex._id)
-                        var currObject = foundry.utils.deepClone(feature.toObject())
-                        transformAction(this.content, currObject, currFeat)
-                        embedQueue.push(currObject)
-                        found = true
-                        break
-                    }
-                }
-                if (!found) {
-                    moduleLib.vttLog(`EmbedFromRepeating - ${repeatingKey} not found in compendium - Adding it to creation queue`)
-                    creationQueue.push(currFeat)
-                }
-            }
-        }
-
-        return {
-            embedQueue,
-            creationQueue
-        }
-    }
-
+    
     getNPCDetails(alignment, type) {
 
         return {
@@ -237,6 +207,64 @@ export default class NPCActorImport extends ActorImporter {
                 default: 0
             },
             flags: {}
+        }
+    }
+
+    getNPCHp() {
+        var hpAttrib = this.getAttrib("hp")
+        return {
+            value: hpAttrib.max,
+            max: hpAttrib.max
+        };
+    }
+
+    getNPCAttributes(darkvision) {
+        var speed = 0
+
+        var speedInfos = this.getAttribCurrent("speed")
+        var regexOutput = this.numberRegex.exec(speedInfos);
+        if (regexOutput && regexOutput.length > 0) {
+            speed = parseInt(regexOutput[0])
+        }
+
+
+        return {
+            ac: {
+                value: this.getAttribCurrentInt("ac")
+            },
+            hp: this.getNPCHp(),
+            init: {
+                mod: this.getAttribCurrentInt("initiative_bonus"),
+            },
+            movement: {
+                burrow: 0,
+                climb: 0,
+                fly: 0,
+                swim: 0,
+                walk: speed,
+                units: "ft",
+                hover: false
+            },
+            senses: {
+                darkvision: darkvision,
+                blindsight: 0,
+                tremorsense: 0,
+                truesight: 0,
+                units: "ft",
+                special: ""
+            },
+            spellcasting: this.getSpellcastingAbility(),
+            exhaustion: 0,
+            hd: 0,
+            prof: 1,
+            spellLevel: this.getAttribCurrentInt('caster_level'),
+            spelldc: this.getAttribCurrentInt('npc_spelldc'),
+            encumbrance: {
+                value: 0,
+                max: 120,
+                pct: 0,
+                encumbered: false
+            },
         }
     }
 }
