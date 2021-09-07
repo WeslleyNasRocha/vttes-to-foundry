@@ -18,8 +18,7 @@ export default class NPCActorImport extends ActorImporter {
         }
 
         var monsterFeatures = await game.packs.get('dnd5e.monsterfeatures')
-        var items = this.getCompendiumByType('weapon')
-        
+
         var spells = await this.getAndPrepareSpells()
 
         moduleLib.vttLog('Iterating on Features ...')
@@ -29,12 +28,17 @@ export default class NPCActorImport extends ActorImporter {
             creationQueue: creationFeaturesQueue
         } = await this.embedMonsterFeatures(monsterFeatures)
 
-        moduleLib.vttLog('Iterating on Actions ...')
-        var embedActionsQueue = []
-        var {
-            embedQueue: embedActionsQueue,
-            creationQueue: creationActionQueue
-        } = await this.embedFromRepeating([monsterFeatures, ...items], 'npcaction', this.updateDamage)
+        // moduleLib.vttLog('Iterating on Actions ...')
+        // var embedActionsQueue = []
+        // var {
+        //     embedQueue: embedActionsQueue,
+        //     creationQueue: creationActionQueue
+        // } = await this.embedFromRepeating([monsterFeatures, ...items], 'npcaction', this.updateDamage)
+
+        var embedActionsQueue = await this.embedFromCompendiums(['npcaction', 'weapon'], 'npcaction', {
+            transformAction: this.updateDamage,
+            createAction: this.createNPCAction
+        })
 
         var allItemsToCreate = [...embedFeaturesQueue, ...embedActionsQueue, ...spells];
 
@@ -104,14 +108,14 @@ export default class NPCActorImport extends ActorImporter {
         }
     }
 
-    
+
     getNPCDetails(alignment, type) {
 
         var cr = this.getAttribCurrent("npc_challenge")
-        if (cr === '—'){
+        if (cr === '—') {
             cr = '0'
         }
-        
+
         return {
             biography: {
                 value: unescape(this.content.character.bio),
@@ -221,6 +225,135 @@ export default class NPCActorImport extends ActorImporter {
             value: hpAttrib.max,
             max: hpAttrib.max
         };
+    }
+
+    async createNPCAction(item, options) {
+        console.log(item)
+        console.log(options)
+
+        var desc = await renderTemplate(moduleLib.getFolderPath() + 'templates/itemDescription.hbs', {
+            properties: item.itemproperties ? item.itemproperties.current : '',
+            content: item.itemcontent ? item.itemcontent.current : ''
+        })
+
+        var newItem = {
+            name: item.name.current,
+            type: 'feat',
+            data: {
+                description: {
+                    value: desc
+                },
+                source: 'Imported by vttes to Foundry',
+                quantity: item.itemcount ? item.itemcount.current : 1,
+                weight: item.itemweight ? item.itemweight.current : 0,
+                rarity: "common",
+            }
+        }
+
+        if (item.attack_damage) {
+
+            newItem.type = 'weapon'
+
+            var damageParts = [
+                [item.attack_damage.current, item.attack_damagetype.current],
+                [item.attack_damage2 ? item.attack_damage2.current : '', item.attack_damagetype2 ? item.attack_damagetype2.current : ''],
+            ]
+
+            var range = {
+                value: 0,
+                long: null,
+                units: 'ft'
+            }
+
+            if (item.attack_range) {
+                moduleLib.getAttackRange(item.attack_range.current)
+            }
+
+            var aType = moduleLib.getAttackType(item.attack_type ? item.attack_type.current : 'none')
+
+            if (!aType) {
+                if (range.value == 5) {
+                    aType = moduleLib.getAttackType('Melee')
+                } else {
+                    aType = moduleLib.getAttackType('Ranged')
+                }
+            }
+
+            newItem.data = {
+                description: {
+                    value: desc,
+                    chat: "",
+                    unidentified: ""
+                },
+                source: moduleLib.SOURCE_MESSAGE,
+                quantity: 1,
+                weight: 0,
+                price: null,
+                attunement: 0,
+                equipped: true,
+                rarity: "",
+                identified: false,
+                activation: {
+                    type: "action",
+                    cost: 1,
+                    condition: ""
+                },
+                duration: {
+                    value: null,
+                    units: ""
+                },
+                target: {
+                    value: null,
+                    width: null,
+                    units: "",
+                    type: ""
+                },
+                range: range,
+                uses: {
+                    value: 0,
+                    max: 0,
+                    per: null
+                },
+                consume: {
+                    type: "",
+                    target: null,
+                    amount: null
+                },
+                ability: "default",
+                actionType: aType,
+                attackBonus: item.attack_tohit.current,
+                chatFlavor: "",
+                critical: null,
+                damage: {
+                    parts: damageParts,
+                    versatile: ''
+                },
+                formula: "",
+                save: {
+                    ability: "",
+                    dc: null,
+                    scaling: "spell"
+                },
+                armor: {
+                    value: 10
+                },
+                hp: {
+                    value: 0,
+                    max: 0,
+                    dt: null,
+                    conditions: ""
+                },
+                weaponType: "natural",
+                properties: {},
+                proficient: false
+            }
+
+
+
+            // newItem.data.actionType = moduleLib.getAttackTypeFromWeaponType(item.attack_type ? item.attack_type.current : "Melee")
+        }
+
+        return newItem
     }
 
     getNPCAttributes(darkvision) {

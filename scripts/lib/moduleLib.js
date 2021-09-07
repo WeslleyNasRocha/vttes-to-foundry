@@ -4,6 +4,8 @@ const LOCAL_CONFIG = {
     environment: "prod"
 }
 
+const SOURCE_MESSAGE = 'Imported by vttes to Foundry'
+
 const getFolderPath = function() {
     if (LOCAL_CONFIG.environment === 'dev') {
         return 'modules/vttes-to-foundry-dev/'
@@ -55,7 +57,19 @@ const getArmorLimit = function(armor) {
 }
 
 const getAttackType = function(attackType) {
-    return ATTACK_TYPES[attackType]
+    var kv = ATTACK_TYPES.find(at => at.key === attackType)
+
+    return kv ? kv.value : null
+}
+
+const getAttackRange = function(attackRange) {
+    var rangeInfo = attackRange.split(' ')
+
+    return {
+        value: rangeInfo[0],
+        long: null,
+        units: rangeInfo[1].replace('.', '')
+    }
 }
 
 const getAttackTypeFromWeaponType = function(weaponType) {
@@ -71,17 +85,18 @@ const VTTES_TO_FOUNDRY_SIZES = {
     gargantuan: "grg"
 }
 
-const ATTACK_TYPES = {
-    "Melee": "mwak",
-    "Ranged": "rwak",
-    "Melee Spell Attack": "msak",
-    "Ranged Spell Attack": "rsak"
+const ATTACK_TYPES = 
+[    
+    {key:'Melee', value:'mwak'},
+    {key: 'Ranged', value: "rwak"},
+    {key: 'Melee Spell Attack', value: "msak"},
+    {key: 'Ranged Spell Attack', value: "rsak"}
     // test: "save",
     // test: "heal",
     // test: "abil",
     // test: "util",
     // test: "other",
-}
+]
 
 const ARMOR_TYPES = {
     "Light Armor": "light",
@@ -120,4 +135,5 @@ const WEAPON_TYPES =
         "Versatile": "ver"
       }
 
-export {vttLog, vttWarn, vttError, getAttackTypeFromWeaponType, capitalizeFirstLetter, getSizeCode, getArmorTypeAndDexLimit as getArmorType, getFolderPath}
+export {vttLog, vttWarn, vttError, getAttackTypeFromWeaponType, capitalizeFirstLetter, getAttackRange,
+    getSizeCode, getArmorTypeAndDexLimit as getArmorType, getFolderPath, SOURCE_MESSAGE, getAttackType}

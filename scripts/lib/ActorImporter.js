@@ -129,20 +129,25 @@ export default class ActorImporter {
         return Math.floor((level + 7) / 4);
     }
 
-    async embedFromCompendiums(compendiumKey, repeatingKey, options = {
+    async embedFromCompendiums(compendiumKeys, repeatingKey, options = {
         keyName: 'name',
-        transformAction: this.noop
+        transformAction: this.noop,
+        createAction: null
     }) {
         var readyToImport = []
         var notCreated = []
-        var compendiums = this.getCompendiumByType(compendiumKey);
+        var compendiums = [] 
+        compendiumKeys.forEach(compendiumKey => {
+            var comps = this.getCompendiumByType(compendiumKey);
+            compendiums = [...compendiums, ...comps]
+        });
 
         var {
             embedQueue: readyToImport,
             creationQueue: notCreated
         } = await this.embedFromRepeating(compendiums, repeatingKey, options.transformAction ?? this.noop, options)
 
-        moduleLib.vttLog(`${notCreated.length} items in ${repeatingKey} were not found in compendiums of type ${compendiumKey}`)
+        moduleLib.vttLog(`${notCreated.length} items in ${repeatingKey} were not found in compendiums of type ${compendiumKeys}`)
 
         if (options.createAction) {
             moduleLib.vttLog(`${repeatingKey} items have create method. Iterating ...`)
@@ -165,7 +170,7 @@ export default class ActorImporter {
                     value: feat.description ? feat.description.current : ''
                 },
                 requirements: feat.source_type ? feat.source_type.current : feat.source ? feat.source.current : '',
-                source: 'Imported by vttes to Foundry'
+                source: moduleLib.SOURCE_MESSAGE
             }
         }
 
@@ -186,7 +191,7 @@ export default class ActorImporter {
                 description: {
                     value: desc
                 },
-                source: 'Imported by vttes to Foundry',
+                source: moduleLib.SOURCE_MESSAGE,
                 quantity: item.itemcount ? item.itemcount.current : 1,
                 weight: item.itemweight ? item.itemweight.current : 0,
                 rarity: "common",
@@ -217,7 +222,6 @@ export default class ActorImporter {
                 newItem.type= 'equipment'
                 newItem.data.stealth = modifiers['Stealth'] ? modifiers['Stealth'] === 'Disadvantage' : false
             }
-            console.log(modifiers)
         }
 
         
