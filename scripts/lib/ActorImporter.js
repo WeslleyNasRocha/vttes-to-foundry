@@ -1,8 +1,9 @@
 import * as moduleLib from "./moduleLib.js";
 import ItemFormat from "./itemFormat.js";
+import {DND5E} from "../../../../systems/dnd5e/module/config.js"
 
 export default class ActorImporter {
-    
+
     numberRegex = /\d+/g;
 
     constructor(actor) {
@@ -102,7 +103,10 @@ export default class ActorImporter {
         return property.current
     }
 
-    getAttrib(key, options = { throwIfNotFound: false, warnIfNotFound: false }) {
+    getAttrib(key, options = {
+        throwIfNotFound: false,
+        warnIfNotFound: false
+    }) {
         var attrib = this.content.character.attribs.find(att => att.name === key)
         if (attrib || !(options.throwIfNotFound ?? false)) {
             return attrib
@@ -129,20 +133,25 @@ export default class ActorImporter {
         return Math.floor((level + 7) / 4);
     }
 
-    async embedFromCompendiums(compendiumKey, repeatingKey, options = {
+    async embedFromCompendiums(compendiumKeys, repeatingKey, options = {
         keyName: 'name',
-        transformAction: this.noop
+        transformAction: this.noop,
+        createAction: null
     }) {
         var readyToImport = []
         var notCreated = []
-        var compendiums = this.getCompendiumByType(compendiumKey);
+        var compendiums = []
+        compendiumKeys.forEach(compendiumKey => {
+            var comps = this.getCompendiumByType(compendiumKey);
+            compendiums = [...compendiums, ...comps]
+        });
 
         var {
             embedQueue: readyToImport,
             creationQueue: notCreated
         } = await this.embedFromRepeating(compendiums, repeatingKey, options.transformAction ?? this.noop, options)
 
-        moduleLib.vttLog(`${notCreated.length} items in ${repeatingKey} were not found in compendiums of type ${compendiumKey}`)
+        moduleLib.vttLog(`${notCreated.length} items in ${repeatingKey} were not found in compendiums of type ${compendiumKeys}`)
 
         if (options.createAction) {
             moduleLib.vttLog(`${repeatingKey} items have create method. Iterating ...`)
@@ -165,7 +174,7 @@ export default class ActorImporter {
                     value: feat.description ? feat.description.current : ''
                 },
                 requirements: feat.source_type ? feat.source_type.current : feat.source ? feat.source.current : '',
-                source: 'Imported by vttes to Foundry'
+                source: moduleLib.SOURCE_MESSAGE
             }
         }
 
@@ -173,8 +182,7 @@ export default class ActorImporter {
     }
 
     async createItem(item, options) {
-        var desc = await renderTemplate(moduleLib.getFolderPath() + 'templates/itemDescription.hbs', 
-        {
+        var desc = await renderTemplate(moduleLib.getFolderPath() + 'templates/itemDescription.hbs', {
             properties: item.itemproperties ? item.itemproperties.current : '',
             content: item.itemcontent ? item.itemcontent.current : ''
         })
@@ -186,7 +194,7 @@ export default class ActorImporter {
                 description: {
                     value: desc
                 },
-                source: 'Imported by vttes to Foundry',
+                source: moduleLib.SOURCE_MESSAGE,
                 quantity: item.itemcount ? item.itemcount.current : 1,
                 weight: item.itemweight ? item.itemweight.current : 0,
                 rarity: "common",
@@ -197,7 +205,7 @@ export default class ActorImporter {
 
         if (item.itemmodifiers) {
             var modifiers = item.itemmodifiers.current.split(',')
-                .reduce((arr, curr)=> {
+                .reduce((arr, curr) => {
                     var keyValue = curr.split(':')
                     if (keyValue[0] && keyValue[1]) {
                         arr[keyValue[0].trim()] = keyValue[1].trim()
@@ -208,19 +216,21 @@ export default class ActorImporter {
             if (modifiers['AC']) {
                 moduleLib.vttLog(`Item : ${newItem.name} identified as equipment`)
 
-                var {typeName: arType, maxDex: maxDex} = moduleLib.getArmorType(modifiers['Item Type'])
+                var {
+                    typeName: arType,
+                    maxDex: maxDex
+                } = moduleLib.getArmorType(modifiers['Item Type'])
                 newItem.data.armor = {
                     value: parseInt(modifiers['AC']),
                     type: arType,
                     dex: maxDex
                 }
-                newItem.type= 'equipment'
+                newItem.type = 'equipment'
                 newItem.data.stealth = modifiers['Stealth'] ? modifiers['Stealth'] === 'Disadvantage' : false
             }
-            console.log(modifiers)
         }
 
-        
+
         if (item.hasattack && item.hasattack.current == 1) {
             moduleLib.vttLog(`Item : ${newItem.name} identified as weapon`)
 
@@ -241,17 +251,42 @@ export default class ActorImporter {
                 damageParts.push([
                     `${attackData.dmgbase.current} + @mod`,
                     attackData.dmgtype.current
-                    ])
+                ])
             }
 
             newItem.data.damage.parts = damageParts
             newItem.data.damage.versatile = versatile
             newItem.data.actionType = moduleLib.getAttackTypeFromWeaponType(modifiers['Item Type'])
 
+            newItem.data.properties = {
+                "fin": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.fin),
+                "lgt": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.lgt),
+                "thr": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.thr),
+                "amm": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.amm),
+                "hvy": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.hvy),
+                "fir": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.fir),
+                "foc": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.foc),
+                "lod": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.lod),
+                "rch": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.rch),
+                "rel": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.rel),
+                "ret": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.ret),
+                "spc": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.spc),
+                "two": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.two),
+                "ver": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.ver),
+                "ada": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.ada),
+                "mgc": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.mgc),
+                "sil": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.sil)
+            }
+            newItem.data.activation = {
+                type: 'action',
+                cost: 1,
+                condition: ''
+            }
+
             newItem.type = 'weapon'
         }
-         
-        
+
+
 
         return newItem
     }
@@ -488,7 +523,7 @@ export default class ActorImporter {
             sourceClass.data.spellcasting = {
                 progression: "none",
                 ability: ""
-              }
+            }
         }
         var clonedClass = {
             name: className,
@@ -503,9 +538,9 @@ export default class ActorImporter {
             clonedClass.data.spellcasting = {
                 progression: "none",
                 ability: ""
-              }
+            }
         }
-        
+
         return clonedClass;
     }
 
@@ -550,6 +585,51 @@ export default class ActorImporter {
         return abilityName.substring(2, abilityName.length - 6).substring(0, 3);
     }
 
+    getArmorsProficiencies(proficiencies) {
+        const nameTransform = function(name) {
+            if (name === 'shields') {
+                return DND5E.armorProficienciesMap['shield']
+            }
+            name = name.replace('armor', '').trim()
+            return DND5E.armorProficienciesMap[name]
+        }
+
+        return this.getProficiency(proficiencies, "ARMOR", nameTransform)
+    }
+
+    getWeaponsProficiencies(proficiencies) {
+        const nameTransform = function (name){
+            const lowerName = name.toLowerCase()
+            if (lowerName === 'simple weapons') {
+                return 'sim'
+            }
+            if (lowerName === 'martial weapons') {
+                return 'mar'
+            }
+            return lowerName
+        }
+
+        return this.getProficiency(proficiencies, 'WEAPON', nameTransform)
+    }
+
+    getProficiency(proficiencies, profKey, transform = null) {
+        var keys = proficiencies[profKey]
+        if (!keys) {
+            return 'none'
+        }
+        var values = keys.reduce((arr, curr) => {
+            var profName = this.getAttribCurrent(curr + "_name").toLowerCase()
+            if (transform)
+            {
+                profName = transform(profName)
+            }
+            arr.push(profName)
+            return arr
+        }, [])
+
+        return values
+    }
+
     getProficiencyAsCustom(proficiencies, profKey) {
         var keys = proficiencies[profKey]
         if (!keys) {
@@ -568,7 +648,9 @@ export default class ActorImporter {
     }
 
     getHp() {
-        var hpAttrib = this.getAttrib("hp", {warnIfNotFound: true})
+        var hpAttrib = this.getAttrib("hp", {
+            warnIfNotFound: true
+        })
 
         if (!hpAttrib) {
             moduleLib.vttWarn(`The attribute hp was not found. Make sure all attributes names (attribs) are set in lowercase`, true)
@@ -606,7 +688,8 @@ export default class ActorImporter {
 
                 for (let cpdIdx = 0; cpdIdx < compendiums.length; cpdIdx++) {
                     const compendium = compendiums[cpdIdx];
-                    var mfIndex = compendium.index.find(m => m.name.toLowerCase() === currFeat[options.keyName].current.toLowerCase())
+                    const featNameForSearch = moduleLib.getNameForSearch(currFeat[options.keyName].current)
+                    var mfIndex = compendium.index.find(m => m.name.toLowerCase() === featNameForSearch)
                     if (mfIndex) {
                         var feature = await compendium.getDocument(mfIndex._id)
                         var currObject = foundry.utils.deepClone(feature.toObject())
@@ -614,7 +697,7 @@ export default class ActorImporter {
                         embedQueue.push(currObject)
                         found = true
 
-                        if (currFeat['itemattackid']){
+                        if (currFeat['itemattackid']) {
                             moduleLib.vttLog(`${currFeat[options.keyName].current} has attackid`)
                             console.log(this.repeatingFeatures['attack'][currFeat['itemattackid'].current])
 
