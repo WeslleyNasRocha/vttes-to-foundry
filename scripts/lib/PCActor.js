@@ -14,54 +14,59 @@ export default class PCActorImport extends ActorImporter {
         await super.import(content, compendiums)
 
         var abilities = this.getAbilities();
-        var traits = await this.embedFromCompendiums(['feat'], 'traits', {
+        var traits = await this.embedFromCompendiums(['feat'], ['traits'], {
             createAction: this.createFeat
         })
-        var inventory = await this.embedFromCompendiums(['equipment'], 'inventory', {
+        this.setDarkvision(traits);
+
+        var inventory = await this.embedFromCompendiums(['equipment'], ['inventory'], {
             keyName: 'itemname',
             createAction: this.createItem,
             features: this.repeatingFeatures,
             transformAction: this.applyItemTranformation
         })
-        var spells = await this.getAndPrepareSpells();
+
+        var spellKeys = this.getSpellsKeys();
+
+        //var spells = await this.getAndPrepareSpells();
+        var spells = await this.embedFromCompendiums(['spell'], spellKeys, {
+            keyName: 'spellname',
+            createAction: this.createSpell,
+            features: this.repeatingFeatures,
+            transformAction: this.applySpellTranformation
+        })
 
         await this.setClasses();
 
-        var darkvision = this.getDarkvision(traits);
         var size = moduleLib.getSizeCode(this.getAttribCurrent("size"))
-        await this.updatePCActorSheet(darkvision, size, abilities);
+
+        await this.updatePCActorSheet(this.darkvision, size, abilities);
 
         this.applyProficiencies(inventory);
 
         var allItemsToCreate = [...inventory, ...traits, ...spells];
         await this.actor.createEmbeddedDocuments("Item", allItemsToCreate);
 
-
-        if (this.content.character.defaulttoken && this.content.character.defaulttoken != '') {
-            var tokenInfos = JSON.parse(this.content.character.defaulttoken);
-            await this.updateToken(tokenInfos, darkvision);
-        } else {
-            await this.updateToken({
-                name: this.actor.name,
-                imgsrc: this.actor.img
-            }, darkvision);
-        }
+        this.getTokenSetup();
 
         await this.actor.longRest({dialog: false, chat: false})
     }
 
-    async updateToken(tokenInfos, darkvision) {
-        var actorToken = this.actor.data.token;
-        await actorToken.update({
-            name: tokenInfos.name,
-            vision: true,
-            dimSight: tokenInfos.night_vision_distance ?? darkvision,
-            img: tokenInfos.imgsrc,
-            displayName: tokenInfos.showname ? CONST.TOKEN_DISPLAY_MODES.ALWAYS : CONST.TOKEN_DISPLAY_MODES.NONE
-        });
+    
+
+    getSpellsKeys() {
+        var spellKeys = [];
+
+        spellKeys.push('spell-cantrip');
+        for (let idx = 1; idx < 10; idx++) {
+            spellKeys.push('spell-' + idx);
+        }
+        return spellKeys;
     }
 
-    applyItemTranformation(content, objectToTransform, linkedFeature) {
+    applyItemTranformation(content, objectToTransform, linkedFeature, options) {
+        moduleLib.setItemGlobalOptions(options, objectToTransform);
+
         if (objectToTransform.type == 'equipment' || objectToTransform.type == 'weapon'){
             objectToTransform.data.equipped = linkedFeature['equipped'] ? linkedFeature['equipped'].current == 1 : true 
         }
@@ -138,6 +143,7 @@ export default class PCActorImport extends ActorImporter {
         var tools = this.getToolProficiencies()
 
         var proficiencies = this.getGlobalProficiencies()
+        var tokenContent = this.getTokenSetup()
 
         await this.actor.update({
             name: this.content.character.name,
@@ -151,7 +157,7 @@ export default class PCActorImport extends ActorImporter {
                     },
                     hp: this.getHp(),
                     init: {
-                        mod: this.getAttribCurrentInt("initiative_bonus"),
+                        value: this.getAttribCurrentInt("initmod"),
                     },
                     movement: {
                         burrow: 0,
@@ -224,7 +230,8 @@ export default class PCActorImport extends ActorImporter {
                         custom: tools.join(';')
                     }
                 }
-            }
+            },
+            token: tokenContent
         });
     }
 
@@ -235,3 +242,5 @@ export default class PCActorImport extends ActorImporter {
         }, []);
     }
 }
+
+
