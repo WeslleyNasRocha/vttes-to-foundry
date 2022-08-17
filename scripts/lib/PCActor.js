@@ -47,29 +47,112 @@ export default class PCActorImport extends ActorImporter {
         var allItemsToCreate = [...inventory, ...traits, ...spells];
         await this.actor.createEmbeddedDocuments("Item", allItemsToCreate);
 
-        this.getTokenSetup();
+
+        if (this.content.character.defaulttoken && this.content.character.defaulttoken != '') {
+            var tokenInfos = JSON.parse(this.content.character.defaulttoken);
+            await this.updateToken(tokenInfos, this.darkvision);
+        } else {
+            await this.updateToken({
+                name: this.actor.name,
+                imgsrc: this.actor.img
+            }, this.darkvision);
+        }
 
         await this.actor.longRest({dialog: false, chat: false})
     }
 
-    
-
     getSpellsKeys() {
-        var spellKeys = [];
+        var output = ['cantrip']
 
-        spellKeys.push('spell-cantrip');
-        for (let idx = 1; idx < 10; idx++) {
-            spellKeys.push('spell-' + idx);
+        for (var i = 1; i < 10; i++) {
+            output.push(`spell-${i}`)
         }
-        return spellKeys;
+
+        return output
     }
 
-    applyItemTranformation(content, objectToTransform, linkedFeature, options) {
-        moduleLib.setItemGlobalOptions(options, objectToTransform);
+    async updateToken(tokenInfos, darkvision) {
+        var actorToken = this.actor.data.token;
 
-        if (objectToTransform.type == 'equipment' || objectToTransform.type == 'weapon'){
-            objectToTransform.data.equipped = linkedFeature['equipped'] ? linkedFeature['equipped'].current == 1 : true 
+        if (tokenInfos.sides && tokenInfos.sides != '') {
+            var allSides = tokenInfos.sides.split('|')
+
+            var macrosCompendium = game.packs.get('world.macros')
+
+            
+
+
+            var script = `let d = new Dialog({
+                title: "Sides for ${tokenInfos.name}",
+                content: "<p>Choose image for the selected token</p>",
+                buttons: {`
+
+            var idx = 0
+            allSides.forEach(element => {
+                var url = decodeURIComponent(element)
+                // console.log(decodeURIComponent(element))
+                script += `${idx++}: {`
+                script += `    icon: "<img src='${url}' style:'width:60px;'/>",`
+                script += `    callback: () => updateToken('${url}')`
+                script += '  },'
+            });
+
+            script += `  }
+        });
+       
+       d.render(true);
+       
+       function updateToken(imgUrl) {
+         let tokens = canvas.tokens.controlled
+       
+         if (tokens.length > 0) {
+           update(tokens[0], imgUrl)
+         } else {
+           ui.notifications.warn("No Tokens were selected");
+         }
+       }
+       
+       function update(token, url) {
+         updates = [{
+           _id: token.id,
+           img: url
+         }];
+         canvas.scene.updateEmbeddedDocuments("Token", updates);
+       }`
+
+            var macroName = `${tokenInfos.name} Token Change`
+
+            var existingMacro = macrosCompendium.index.getName(macroName)
+            if (existingMacro != null) {
+                moduleLib.vttWarn(`Macro for actor ${tokenInfos.name} already existing, deleting ...`, true)
+                await macrosCompendium.delete(existingMacro._id)
+            }
+
+            var tokenMacro = new Macro({
+                name: macroName,
+                img: tokenInfos.imgsrc,
+                type: 'script',
+                command: script
+            })
+            macrosCompendium.importDocument(tokenMacro)
+            
+            moduleLib.vttLog(`Actor has rollable token. Make sure you also assign macro to the player`, true)
         }
+
+        await actorToken.update({
+            name: tokenInfos.name,
+            vision: true,
+            dimSight: tokenInfos.night_vision_distance ?? darkvision,
+            img: tokenInfos.imgsrc,
+            displayName: tokenInfos.showname ? CONST.TOKEN_DISPLAY_MODES.ALWAYS : CONST.TOKEN_DISPLAY_MODES.NONE
+        });
+    }
+
+    applyItemTranformation(content, objectToTransform, linkedFeature) {
+        if (objectToTransform.type == 'equipment' || objectToTransform.type == 'weapon') {
+            objectToTransform.data.equipped = linkedFeature['equipped'] ? linkedFeature['equipped'].current == 1 : true
+        }
+        objectToTransform.data.quantity = linkedFeature.itemcount.current
     }
 
     applyProficiencies(inventory) {
