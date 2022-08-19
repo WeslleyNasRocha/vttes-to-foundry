@@ -28,7 +28,6 @@ export default class PCActorImport extends ActorImporter {
 
         var spellKeys = this.getSpellsKeys();
 
-        //var spells = await this.getAndPrepareSpells();
         var spells = await this.embedFromCompendiums(['spell'], spellKeys, {
             keyName: 'spellname',
             createAction: this.createSpell,
@@ -62,7 +61,7 @@ export default class PCActorImport extends ActorImporter {
     }
 
     getSpellsKeys() {
-        var output = ['cantrip']
+        var output = ['spell-cantrip']
 
         for (var i = 1; i < 10; i++) {
             output.push(`spell-${i}`)
@@ -90,7 +89,6 @@ export default class PCActorImport extends ActorImporter {
             var idx = 0
             allSides.forEach(element => {
                 var url = decodeURIComponent(element)
-                // console.log(decodeURIComponent(element))
                 script += `${idx++}: {`
                 script += `    icon: "<img src='${url}' style:'width:60px;'/>",`
                 script += `    callback: () => updateToken('${url}')`

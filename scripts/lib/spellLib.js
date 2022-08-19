@@ -96,23 +96,25 @@ export function getDamages(spellInfos) {
         versatile: ''
     }
 
+    var hasMod = false
+
     if (spellInfos.spelldmgmod) {
-        var hasMod = spellInfos.spelldmgmod.current.toLowerCase() == 'yes'
+        hasMod = spellInfos.spelldmgmod.current.toLowerCase() == 'yes'
+    }
 
-        if (isHealingSpell(spellInfos)) {
-            var healingPart = `${spellInfos.spellhealing.current}${hasMod ? ' +@mod' : ''}`
-            damage.parts.push([healingPart, 'healing'])
-        }
+    if (isHealingSpell(spellInfos)) {
+        var healingPart = `${spellInfos.spellhealing.current}${hasMod ? ' +@mod' : ''}`
+        damage.parts.push([healingPart, 'healing'])
+    }
 
-        if (hasDamage(spellInfos)) {
-            var damagePart = `${spellInfos.spelldamage.current}${hasMod ? ' +@mod' : ''}`
-            damage.parts.push([damagePart, spellInfos.spelldamagetype.current.toLowerCase()])
-        }
+    if (hasDamage(spellInfos)) {
+        var damagePart = `${spellInfos.spelldamage.current}${hasMod ? ' +@mod' : ''}`
+        damage.parts.push([damagePart, spellInfos.spelldamagetype.current.toLowerCase()])
+    }
 
-        if (spellInfos.spelldamage2 && spellInfos.spelldamage2.current != '') {
-            var damagePart = `${spellInfos.spelldamage2.current}${hasMod ? ' +@mod' : ''}`
-            damage.parts.push([spellInfos.spelldamage2.current + hasMod ? ' + @mod' : '', spellInfos.spelldamagetype2.current.toLowerCase()])
-        }
+    if (spellInfos.spelldamage2 && spellInfos.spelldamage2.current != '') {
+        var damagePart = `${spellInfos.spelldamage2.current}${hasMod ? ' +@mod' : ''}`
+        damage.parts.push([spellInfos.spelldamage2.current + hasMod ? ' + @mod' : '', spellInfos.spelldamagetype2.current.toLowerCase()])
     }
 
     return damage
@@ -187,11 +189,14 @@ export function getSave(spellInfos) {
     return {
         ability: moduleLib.ABILITIES[spellInfos.spellsave.current],
         dc: null,
-        scaling: spellInfos.spell_ability.current
+        scaling: spellInfos.spell_ability ? spellInfos.spell_ability.current : null
     }
 }
 
 export function getSpellSchool(spellInfos) {
+    if (!spellInfos.spellschool || !moduleLib.SPELL_SCHOOLS[spellInfos.spellschool.current]) {
+        return 'abj'
+    }
     return moduleLib.SPELL_SCHOOLS[spellInfos.spellschool.current]
 }
 
@@ -220,6 +225,16 @@ export function getPreparation(spellInfos) {
     }
 
     return preparation
+}
+
+export function getSpellLevel(spellInfos, key) {
+    if (spellInfos.spelllevel) {
+        return spellInfos.spelllevel.current == 'cantrip' ? 0 : parseInt(spellInfos.spelllevel.current)
+    }
+
+    var lvl = key.substring(key.indexOf('-') + 1)
+    moduleLib.vttLog(`${lvl} - ${spellInfos.spellname.current}`)
+    return lvl == 'cantrip' ? 0 : parseInt(lvl)
 }
 
 export function getIcon(spellInfos) {

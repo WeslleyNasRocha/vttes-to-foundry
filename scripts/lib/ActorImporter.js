@@ -153,7 +153,8 @@ export default class ActorImporter {
     async embedFromCompendiums(compendiumTypeNames, repeatingKeys, options = {
         keyName: 'name',
         transformAction: this.noop,
-        createAction: null
+        createAction: null,
+
     }) {
         var readyToImport = []
         var notCreated = []
@@ -177,7 +178,7 @@ export default class ActorImporter {
                 moduleLib.vttLog(`${key} items have create method. Iterating ...`)
                 for (let idx = 0; idx < notCreated.length; idx++) {
                     const notFoundItem = notCreated[idx];
-                    var element = await options.createAction(notFoundItem, options)
+                    var element = await options.createAction(notFoundItem, key, options)
                     if (element != null) {
                         readyToImport.push(element)
                     }
@@ -191,7 +192,7 @@ export default class ActorImporter {
         return readyToImport
     }
 
-    async createFeat(feat) {
+    async createFeat(feat, key, options) {
         var newFeat = {
             name: feat.name.current,
             type: 'feat',
@@ -209,7 +210,7 @@ export default class ActorImporter {
     }
 
 
-    async createItem(item, options) {
+    async createItem(item, key, options) {
         var desc = await renderTemplate(moduleLib.getFolderPath() + 'templates/itemDescription.hbs', {
             properties: item.itemproperties ? item.itemproperties.current : '',
             content: item.itemcontent ? item.itemcontent.current : ''
@@ -453,7 +454,7 @@ export default class ActorImporter {
                 ids[objType] = []
             }
             if (!arr[objType][id]) {
-                arr[objType][id] = {}
+                arr[objType][id] = { _id: id }
                 ids[objType].push(id)
             }
             arr[objType][id][propName] = {
@@ -508,7 +509,7 @@ export default class ActorImporter {
 
 
 
-    createSpell(spellInfos, options) {
+    createSpell(spellInfos, key, options) {
 
         if (!spellInfos.spellcastingtime) {
             moduleLib.vttWarn(`Spell ${spellInfos.spellname.current} cannot be imported (reason : no spell casting time)`, true)
@@ -528,13 +529,14 @@ export default class ActorImporter {
         var school = spellLib.getSpellSchool(spellInfos);
         var preparation = spellLib.getPreparation(spellInfos)
         var icon = spellLib.getIcon(spellInfos)
+        var spellLevel = spellLib.getSpellLevel(spellInfos, key)
 
         var newSpell = {
             type: "spell",
             name: spellInfos.spellname.current,
             img: icon,
             data: {
-                level: !spellInfos.spelllevel || spellInfos.spelllevel.current == 'cantrip' ? 0 : parseInt(spellInfos.spelllevel.current),
+                level: spellLevel,
                 description: {
                     value: `${spellInfos.spelldescription.current}<p>${spellInfos.spelltarget ? spellInfos.spelltarget.current : ''}<p>${spellInfos.spellathigherlevels ? spellInfos.spellathigherlevels.current : ''}`
                 },
@@ -760,8 +762,10 @@ export default class ActorImporter {
             return
         }
         return {
-            value: hpAttrib.current,
-            max: hpAttrib.max
+            value: parseInt(hpAttrib.current),
+            max: parseInt(hpAttrib.max),
+            temp: 0,
+            tempmax: 0
         };
     }
 
