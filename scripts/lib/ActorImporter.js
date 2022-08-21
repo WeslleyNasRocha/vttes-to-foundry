@@ -700,25 +700,100 @@ export default class ActorImporter {
             return DND5E.armorProficienciesMap[name]
         }
 
-        return this.getProficiency(proficiencies, "ARMOR", nameTransform)
+        const identify = function(profName) {
+            var found = false
+            for(var prop in DND5E.armorProficienciesMap) {
+                if (DND5E.armorProficienciesMap[prop] == profName) {
+                    found = true
+                }
+            }
+            return found || DND5E.armorIds[profName]
+        }
+
+        var output = { found: [], notFound: [] }
+
+        this.getProficiencyAsFoundAndNotFound(proficiencies, 'ARMOR', identify, output.found, output.notFound, nameTransform)
+
+        return { valid: output.found, customList: output.notFound.join(';') }
+        // return this.getProficiency(proficiencies, "ARMOR", nameTransform)
     }
 
     getWeaponsProficiencies(proficiencies) {
-        const nameTransform = function (name) {
-            const lowerName = name.toLowerCase()
-            if (lowerName === 'simple weapons') {
-                return 'sim'
+        const nameTransform = function (nameInput) {
+            const name = nameInput.toLowerCase()
+            var correspondances = [
+                {key: "simple weapons", value: "sim"},
+                {key: "martial weapons", value: "mar"},
+                {key: "hand crossbow", value: "handcrossbow"},
+                {key: "heavy crossbow", value: "heavycrossbow"},
+                {key: "light crossbow", value: "lightcrossbow"}
+            ]
+
+            var output = correspondances.find(c => c.key == name)
+            if (output != null) {
+                return output.value
             }
-            if (lowerName === 'martial weapons') {
-                return 'mar'
-            }
-            return lowerName
+            return name
         }
 
-        return this.getProficiency(proficiencies, 'WEAPON', nameTransform)
+        const identify = function(profName) {
+            return DND5E.weaponIds[profName]
+        }
+
+        var output = { found: [], notFound: [] }
+
+        this.getProficiencyAsFoundAndNotFound(proficiencies, 'WEAPON', identify, output.found, output.notFound, nameTransform)
+        return { valid: output.found, customList: output.notFound.join(';') }
+
+        // return this.getProficiency(proficiencies, 'WEAPON', nameTransform)
     }
 
-    getProficiency(proficiencies, profKey, transform = null) {
+    getLanguagesProficiencies(proficiencies) {
+        const nameTransform = function(name) {
+            var correspondances = [
+                {key: "thieves' cant", value: "cant"},
+                {key: "deep speech", value: "deep"}
+            ]
+
+            var output = correspondances.find(c => c.key == name)
+            if (output != null) {
+                return output.value
+            }
+            return name
+        }
+
+        const identify = function (profName) {
+            return DND5E.languages[profName]
+        }
+
+        var output = { found: [], notFound: [] }
+
+        this.getProficiencyAsFoundAndNotFound(proficiencies, 'LANGUAGE', identify, output.found, output.notFound, nameTransform)
+        
+        return { valid: output.found, customList: output.notFound.join(';') }
+    }
+
+    getProficiencyAsFoundAndNotFound(proficiencies, profKey, identify, found = [], notFound = [], transform = null) {
+        var keys = proficiencies[profKey]
+        if (!keys) {
+            return
+        }
+
+        keys.forEach(key => {
+            var profName = this.getAttribCurrent(key + "_name")
+            var transformedName = profName.toLowerCase()
+            if (transform) {
+                transformedName = transform(transformedName)
+            }
+            if (identify(transformedName)) {
+                found.push(transformedName)
+            } else {
+                notFound.push(profName)
+            }
+        });
+    }
+
+    getProficiency(proficiencies, profKey, transform = null, toKeyValue = false) {
         var keys = proficiencies[profKey]
         if (!keys) {
             return 'none'

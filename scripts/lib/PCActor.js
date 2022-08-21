@@ -150,7 +150,7 @@ export default class PCActorImport extends ActorImporter {
         if (objectToTransform.type == 'equipment' || objectToTransform.type == 'weapon') {
             objectToTransform.data.equipped = linkedFeature['equipped'] ? linkedFeature['equipped'].current == 1 : true
         }
-        objectToTransform.data.quantity = linkedFeature.itemcount.current
+        objectToTransform.data.quantity = linkedFeature.itemcount ? linkedFeature.itemcount.current : 1
     }
 
     applyProficiencies(inventory) {
@@ -226,6 +226,10 @@ export default class PCActorImport extends ActorImporter {
         var proficiencies = this.getGlobalProficiencies()
         var tokenContent = this.getTokenSetup()
 
+        var languageProficiencies = this.getLanguagesProficiencies(proficiencies)
+        var weaponProficiencies = this.getWeaponsProficiencies(proficiencies)
+        var armorProficiencies = this.getArmorsProficiencies(proficiencies)
+
         await this.actor.update({
             name: this.content.character.name,
             img: this.content.character.avatar,
@@ -295,16 +299,16 @@ export default class PCActorImport extends ActorImporter {
                         custom: ""
                     },
                     languages: {
-                        value: this.getProficiency(proficiencies, "LANGUAGE"),
-                        custom: this.getProficiencyAsCustom(proficiencies, "LANGUAGE")
+                        value: languageProficiencies.valid,
+                        custom: languageProficiencies.customList
                     },
                     weaponProf: {
-                        value: this.getWeaponsProficiencies(proficiencies),
-                        custom: this.getProficiencyAsCustom(proficiencies, "WEAPON")
+                        value: weaponProficiencies.valid,
+                        custom: weaponProficiencies.customList
                     },
                     armorProf: {
-                        value: this.getArmorsProficiencies(proficiencies),
-                        custom: this.getProficiencyAsCustom(proficiencies, "ARMOR")
+                        value: armorProficiencies.valid,
+                        custom: armorProficiencies.customList
                     },
                     toolProf: {
                         value: tools,
