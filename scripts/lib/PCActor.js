@@ -23,7 +23,10 @@ export default class PCActorImport extends ActorImporter {
             keyName: 'itemname',
             createAction: this.createItem,
             features: this.repeatingFeatures,
-            transformAction: this.applyItemTranformation
+            transformAction: this.applyItemTranformation,
+            correspondances: [
+                { key: 'wooden shield', value: 'shield' }
+            ]
         })
 
         var spellKeys = this.getSpellsKeys();
@@ -57,7 +60,7 @@ export default class PCActorImport extends ActorImporter {
             }, this.darkvision);
         }
 
-        await this.actor.longRest({dialog: false, chat: false})
+        await this.actor.longRest({ dialog: false, chat: false })
     }
 
     getSpellsKeys() {
@@ -78,7 +81,7 @@ export default class PCActorImport extends ActorImporter {
 
             var macrosCompendium = game.packs.get('world.macros')
 
-            
+
 
 
             var script = `let d = new Dialog({
@@ -133,7 +136,7 @@ export default class PCActorImport extends ActorImporter {
                 command: script
             })
             macrosCompendium.importDocument(tokenMacro)
-            
+
             moduleLib.vttLog(`Actor has rollable token. Make sure you also assign macro to the player`, true)
         }
 

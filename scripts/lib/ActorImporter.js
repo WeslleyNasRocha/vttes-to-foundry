@@ -154,7 +154,7 @@ export default class ActorImporter {
         keyName: 'name',
         transformAction: this.noop,
         createAction: null,
-
+        correspondances: null
     }) {
         var readyToImport = []
         var notCreated = []
@@ -700,9 +700,9 @@ export default class ActorImporter {
             return DND5E.armorProficienciesMap[name]
         }
 
-        const identify = function(profName) {
+        const identify = function (profName) {
             var found = false
-            for(var prop in DND5E.armorProficienciesMap) {
+            for (var prop in DND5E.armorProficienciesMap) {
                 if (DND5E.armorProficienciesMap[prop] == profName) {
                     found = true
                 }
@@ -715,18 +715,17 @@ export default class ActorImporter {
         this.getProficiencyAsFoundAndNotFound(proficiencies, 'ARMOR', identify, output.found, output.notFound, nameTransform)
 
         return { valid: output.found, customList: output.notFound.join(';') }
-        // return this.getProficiency(proficiencies, "ARMOR", nameTransform)
     }
 
     getWeaponsProficiencies(proficiencies) {
         const nameTransform = function (nameInput) {
             const name = nameInput.toLowerCase()
             var correspondances = [
-                {key: "simple weapons", value: "sim"},
-                {key: "martial weapons", value: "mar"},
-                {key: "hand crossbow", value: "handcrossbow"},
-                {key: "heavy crossbow", value: "heavycrossbow"},
-                {key: "light crossbow", value: "lightcrossbow"}
+                { key: "simple weapons", value: "sim" },
+                { key: "martial weapons", value: "mar" },
+                { key: "hand crossbow", value: "handcrossbow" },
+                { key: "heavy crossbow", value: "heavycrossbow" },
+                { key: "light crossbow", value: "lightcrossbow" }
             ]
 
             var output = correspondances.find(c => c.key == name)
@@ -736,23 +735,21 @@ export default class ActorImporter {
             return name
         }
 
-        const identify = function(profName) {
-            return DND5E.weaponIds[profName]
+        const identify = function (profName) {
+            return DND5E.weaponIds[profName] || profName == 'sim' || profName == 'mar'
         }
 
         var output = { found: [], notFound: [] }
 
         this.getProficiencyAsFoundAndNotFound(proficiencies, 'WEAPON', identify, output.found, output.notFound, nameTransform)
         return { valid: output.found, customList: output.notFound.join(';') }
-
-        // return this.getProficiency(proficiencies, 'WEAPON', nameTransform)
     }
 
     getLanguagesProficiencies(proficiencies) {
-        const nameTransform = function(name) {
+        const nameTransform = function (name) {
             var correspondances = [
-                {key: "thieves' cant", value: "cant"},
-                {key: "deep speech", value: "deep"}
+                { key: "thieves' cant", value: "cant" },
+                { key: "deep speech", value: "deep" }
             ]
 
             var output = correspondances.find(c => c.key == name)
@@ -769,7 +766,7 @@ export default class ActorImporter {
         var output = { found: [], notFound: [] }
 
         this.getProficiencyAsFoundAndNotFound(proficiencies, 'LANGUAGE', identify, output.found, output.notFound, nameTransform)
-        
+
         return { valid: output.found, customList: output.notFound.join(';') }
     }
 
@@ -847,7 +844,8 @@ export default class ActorImporter {
     noop() { }
 
     async embedFromRepeating(compendiums, repeatingKey, transformAction = this.noop, options = {
-        keyName: 'name'
+        keyName: 'name',
+        correspondances: null
     }) {
         var features = this.repeatingFeatures[repeatingKey]
         var featureIds = this.repeatingFeaturesIds[repeatingKey]
@@ -871,12 +869,25 @@ export default class ActorImporter {
 
                 for (let cpdIdx = 0; cpdIdx < compendiums.length; cpdIdx++) {
                     const compendium = compendiums[cpdIdx];
-                    var mfIndex = compendium.index.find(m => m.name.toLowerCase() === featNameForSearch.name)
+                    var nameSearch = featNameForSearch.name
+
+                    if (options.correspondances) {
+                        var corr = options.correspondances.filter(c => c.key == featNameForSearch.name)
+                        if (corr.length == 1) {
+                            nameSearch = corr[0].value
+                        } else {
+                            nameSearch = featNameForSearch.name
+                        }
+                    }
+
+                    var mfIndex = compendium.index.find(m => m.name.toLowerCase() === nameSearch)
+
                     if (mfIndex) {
                         var feature = await compendium.getDocument(mfIndex._id)
                         var currObject = foundry.utils.deepClone(feature.toObject())
 
-                        var transformOptions = featNameForSearch.hasFlavorName ? { flavorName : currFeat[options.keyName].current } : {}
+                        var transformOptions = featNameForSearch.hasFlavorName ? { flavorName: currFeat[options.keyName].current } : {}
+
                         transformAction(this.content, currObject, currFeat, transformOptions)
                         embedQueue.push(currObject)
                         found = true
