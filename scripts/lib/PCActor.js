@@ -161,20 +161,27 @@ export default class PCActorImport extends ActorImporter {
 
     applyItemTranformation(content, objectToTransform, linkedFeature) {
         if (objectToTransform.type == 'equipment' || objectToTransform.type == 'weapon') {
-            objectToTransform.equipped = linkedFeature['equipped'] ? linkedFeature['equipped'].current == 1 : true
+            objectToTransform.system.equipped = linkedFeature['equipped'] ? linkedFeature['equipped'].current == 1 : true
         }
-        objectToTransform.quantity = linkedFeature.itemcount ? linkedFeature.itemcount.current : 1
+        objectToTransform.system.quantity = linkedFeature.itemcount ? linkedFeature.itemcount.current : 1
     }
 
     applyProficiencies(inventory) {
         for (let idx = 0; idx < inventory.length; idx++) {
             const item = inventory[idx];
             if (item.type === 'weapon') {
-                console.log(`${item.name} - ${item.weaponType}`);
-                const wType = DND5E.weaponProficienciesMap[item.weaponType];
+                console.log(`${item.name} - ${item.system.weaponType}`);
 
-                if (this.actor.system.traits.weaponProf.value.includes(wType) || this.actor.system.traits.weaponProf.value.includes(item.name)) {
-                    item.proficient = true;
+                var iName = item.name.toLowerCase()
+                if (iName.indexOf('+') >= 0) {
+                    iName = iName.substring(0, iName.indexOf('+') - 1)
+                }
+                const itemNameForSearch = iName
+
+                const wType = DND5E.weaponProficienciesMap[item.system.weaponType];
+
+                if (this.actor.system.traits.weaponProf.value.includes(wType) || this.actor.system.traits.weaponProf.value.includes(itemNameForSearch)) {
+                    item.system.proficient = true;
                 }
             }
         }
