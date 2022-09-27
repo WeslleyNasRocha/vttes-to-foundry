@@ -1,7 +1,7 @@
 import * as moduleLib from "./moduleLib.js";
 import ItemFormat from "./itemFormat.js";
 import * as spellLib from './spellLib.js'
-import { DND5E } from "../../../../systems/dnd5e/module/config.js"
+import { DND5E } from "../../../../systems/dnd5e/dnd5e.mjs"
 
 export default class ActorImporter {
 
@@ -13,28 +13,11 @@ export default class ActorImporter {
         this.repeatingFeaturesIds = {}
         this.usedAttacks = []
         this.darkvision = null
-
-        this.path = moduleLib.getFolderPath()
     }
 
     async import(content) {
         this.content = content
         this.extractRepeatings()
-
-        // for (let idx = 0; idx < Object.keys(this.repeatingFeatures['attack']).length; idx++) {
-        //     const key = Object.keys(this.repeatingFeatures['attack'])[idx];
-        //     if (this.repeatingFeatures['attack'][key]['itemid']) {
-        //         var itemId = this.repeatingFeatures['attack'][key]['itemid'].current
-        //         console.log(this.repeatingFeatures['inventory'][itemId])
-        //         this.repeatingFeatures['inventory'][itemId]['hasattack'].current = 1
-        //         if (this.repeatingFeatures['inventory'][itemId]['itemattackid'].current.length == 0) {
-        //             this.repeatingFeatures['inventory'][itemId]['itemattackid'].current = key
-        //         } else if (this.repeatingFeatures['inventory'][itemId]['itemattackid'].current.indexOf(key) < 0) {
-        //             this.repeatingFeatures['inventory'][itemId]['itemattackid'].current += ',' + key
-        //         }
-        //         // console.log(this.repeatingFeatures['inventory'][itemId])
-        //     }
-        // }
     }
 
     getAbilities() {
@@ -170,7 +153,7 @@ export default class ActorImporter {
             var {
                 embedQueue: currentImport,
                 creationQueue: notCreated
-            } = await this.embedFromRepeating(compendiums, key, options.transformAction, options)
+            } = await this.embedFromRepeating(compendiums, key, options.transformAction, compendiumTypeNames, options)
 
             moduleLib.vttLog(`${notCreated.length} items in ${key} were not found in compendiums of type ${key}`)
 
@@ -197,7 +180,7 @@ export default class ActorImporter {
             name: feat.name.current,
             type: 'feat',
             img: 'icons/commodities/tech/dial-meter-gauge-blue.webp',
-            data: {
+            system: {
                 description: {
                     value: feat.description ? feat.description.current : ''
                 },
@@ -219,7 +202,7 @@ export default class ActorImporter {
         var newItem = {
             name: item[options.keyName].current,
             type: 'loot',
-            data: {
+            system: {
                 description: {
                     value: desc
                 },
@@ -249,13 +232,13 @@ export default class ActorImporter {
                     typeName: arType,
                     maxDex: maxDex
                 } = moduleLib.getArmorType(modifiers['Item Type'])
-                newItem.data.armor = {
+                newItem.armor = {
                     value: parseInt(modifiers['AC']),
                     type: arType,
                     dex: maxDex
                 }
                 newItem.type = 'equipment'
-                newItem.data.stealth = modifiers['Stealth'] ? modifiers['Stealth'] === 'Disadvantage' : false
+                newItem.stealth = modifiers['Stealth'] ? modifiers['Stealth'] === 'Disadvantage' : false
             }
         }
 
@@ -263,7 +246,7 @@ export default class ActorImporter {
         if (item.hasattack && item.hasattack.current == 1) {
             moduleLib.vttLog(`Item : ${newItem.name} identified as weapon`)
 
-            newItem.data.damage = {}
+            newItem.damage = {}
             var features = options.features
             var damageParts = []
             var versatile = ''
@@ -272,25 +255,27 @@ export default class ActorImporter {
             for (let idx = 0; idx < attackIds.length; idx++) {
                 const attackId = attackIds[idx];
                 var attackData = features['attack'][attackId]
+                var attackValue = attackData.dmgbase.current.replace('ro', 'r')
+
                 if (attackData.versatile_alt && attackData.versatile_alt.current == 1) {
-                    versatile = `${attackData.dmgbase.current} + @mod`
-                    if (!newItem.data.properties) {
-                        newItem.data.properties = {}
+                    versatile = `${attackValue} + @mod`
+                    if (!newItem.properties) {
+                        newItem.properties = {}
                     }
-                    newItem.data.properties.ver = true
+                    newItem.properties.ver = true
                     continue
                 }
                 damageParts.push([
-                    `${attackData.dmgbase.current} + @mod`,
+                    `${attackValue} + @mod`,
                     attackData.dmgtype.current
                 ])
             }
 
-            newItem.data.damage.parts = damageParts
-            newItem.data.damage.versatile = versatile
-            newItem.data.actionType = moduleLib.getAttackTypeFromWeaponType(modifiers['Item Type'])
+            newItem.damage.parts = damageParts
+            newItem.damage.versatile = versatile
+            newItem.actionType = moduleLib.getAttackTypeFromWeaponType(modifiers['Item Type'])
 
-            newItem.data.properties = {
+            newItem.properties = {
                 "fin": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.fin),
                 "lgt": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.lgt),
                 "thr": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.thr),
@@ -309,7 +294,7 @@ export default class ActorImporter {
                 "mgc": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.mgc),
                 "sil": item.itemproperties.current.includes(moduleLib.WEAPON_PROPERTIES.sil)
             }
-            newItem.data.activation = {
+            newItem.activation = {
                 type: 'action',
                 cost: 1,
                 condition: ''
@@ -344,7 +329,7 @@ export default class ActorImporter {
             var newFeat = {
                 name: featName,
                 type: 'feat',
-                data: {
+                system: {
                     description: {
                         value: desc
                     },
@@ -411,28 +396,28 @@ export default class ActorImporter {
         return entry.name.substring(0, entry.name.length - suffix.length);
     }
 
-    async getAndPrepareItems() {
-        var {
-            compendiumEntries,
-            notFoundEntries
-        } = await this.manageCompendium('equipment', '_itemname', '_itemname')
+    // async getAndPrepareItems() {
+    //     var {
+    //         compendiumEntries,
+    //         notFoundEntries
+    //     } = await this.manageCompendium('equipment', '_itemname', '_itemname')
 
-        if (notFoundEntries.length > 0) {
-            moduleLib.vttLog(notFoundEntries.length + ' items were not found in compendiums')
+    //     if (notFoundEntries.length > 0) {
+    //         moduleLib.vttLog(notFoundEntries.length + ' items were not found in compendiums')
 
-            for (let index = 0; index < notFoundEntries.length; index++) {
-                const notFoundItemKey = notFoundEntries[index];
-                var itemInfos = this.getAttribsStartsWith(notFoundItemKey)
+    //         for (let index = 0; index < notFoundEntries.length; index++) {
+    //             const notFoundItemKey = notFoundEntries[index];
+    //             var itemInfos = this.getAttribsStartsWith(notFoundItemKey)
 
-                var newItem = new ItemFormat()
-                // newItem.name = 
-                //moduleLib.vttLog(`${itemInfos.length} items were not found`)
-                // console.log(itemInfos)
-            }
-        }
+    //             var newItem = new ItemFormat()
+    //             // newItem.name = 
+    //             //moduleLib.vttLog(`${itemInfos.length} items were not found`)
+    //             // console.log(itemInfos)
+    //         }
+    //     }
 
-        return compendiumEntries
-    }
+    //     return compendiumEntries
+    // }
 
     extractRepeatings() {
         var input = 'repeating'
@@ -504,7 +489,7 @@ export default class ActorImporter {
     applySpellTranformation(content, objectToTransform, linkedFeature, options) {
         moduleLib.setItemGlobalOptions(options, objectToTransform);
 
-        objectToTransform.data.preparation = spellLib.getPreparation(linkedFeature)
+        objectToTransform.preparation = spellLib.getPreparation(linkedFeature)
     }
 
 
@@ -525,7 +510,7 @@ export default class ActorImporter {
         var scaling = spellLib.getScaling(spellInfos);
         var components = spellLib.getComponents(spellInfos);
         var materials = spellLib.getMaterials(spellInfos);
-        var save = spellLib.getSave(spellInfos);
+        var save = spellLib.getSpellSave(spellInfos);
         var school = spellLib.getSpellSchool(spellInfos);
         var preparation = spellLib.getPreparation(spellInfos)
         var icon = spellLib.getIcon(spellInfos)
@@ -535,7 +520,7 @@ export default class ActorImporter {
             type: "spell",
             name: spellInfos.spellname.current,
             img: icon,
-            data: {
+            system: {
                 level: spellLevel,
                 description: {
                     value: `${spellInfos.spelldescription.current}<p>${spellInfos.spelltarget ? spellInfos.spelltarget.current : ''}<p>${spellInfos.spellathigherlevels ? spellInfos.spellathigherlevels.current : ''}`
@@ -586,13 +571,13 @@ export default class ActorImporter {
                     const classFromComp = classesFromComp[index];
                     const compendiumClass = await compendium.getDocument(classFromComp._id)
 
-                    if (compendiumClass.data.subclass === subClassName) {
-                        moduleLib.vttLog(`Found Subclass ${compendiumClass.data.subclass}`)
+                    if (compendiumClass.subclass === subClassName) {
+                        moduleLib.vttLog(`Found Subclass ${compendiumClass.subclass}`)
                         useClass = compendiumClass
                         foundSubClass = true
                         break
                     }
-                    if (!compendiumClass.data.subclass || compendiumClass.data.subclass === '') {
+                    if (!compendiumClass.subclass || compendiumClass.subclass === '') {
                         if (compendiumClass.name.toLowerCase().includes(lowerSubClassName)) {
                             moduleLib.vttLog(`Found class & subclass by name ${className} (${subClassName}) as ${compendiumClass.name}`)
                             useClass = compendiumClass
@@ -625,27 +610,28 @@ export default class ActorImporter {
     }
 
     getOverridenClassData(className, sourceClass, subClassName, level = 1) {
-        if (!sourceClass.data.spellcasting) {
-            sourceClass.data.spellcasting = {
-                progression: "none",
-                ability: ""
-            }
-        }
-        var clonedClass = {
-            name: className,
-            type: "class",
-            img: sourceClass.img,
-            data: sourceClass.data.data
-        }
-        clonedClass.data.levels = level
-        clonedClass.data.subclass = subClassName
+        // if (!sourceClass.spellcasting) {
+        //     sourceClass.spellcasting = {
+        //         progression: "none",
+        //         ability: ""
+        //     }
+        // }
+        var clonedClass = foundry.utils.deepClone(sourceClass.toObject())
+        // {
+        //     name: className,
+        //     type: "class",
+        //     img: sourceClass.img,
+        //     system: sourceClass.data
+        // }
+        clonedClass.system.levels = level
+        // clonedClass.subclass = subClassName
 
-        if (!clonedClass.data.spellcasting) {
-            clonedClass.data.spellcasting = {
-                progression: "none",
-                ability: ""
-            }
-        }
+        // if (!clonedClass.spellcasting) {
+        //     clonedClass.spellcasting = {
+        //         progression: "none",
+        //         ability: ""
+        //     }
+        // }
 
         return clonedClass;
     }
@@ -656,7 +642,7 @@ export default class ActorImporter {
         var darkvisionEntry = actorFeats.find(a => a.name.toLowerCase() === 'darkvision');
 
         if (darkvisionEntry) {
-            var darkVisionDesc = darkvisionEntry.data.description.value
+            var darkVisionDesc = darkvisionEntry.system.description.value
             var regexOutput = this.numberRegex.exec(darkVisionDesc);
             if (regexOutput && regexOutput.length > 0) {
                 this.darkvision = parseInt(regexOutput[0])
@@ -843,7 +829,7 @@ export default class ActorImporter {
 
     noop() { }
 
-    async embedFromRepeating(compendiums, repeatingKey, transformAction = this.noop, options = {
+    async embedFromRepeating(compendiums, repeatingKey, transformAction = this.noop, typeList = [], options = {
         keyName: 'name',
         correspondances: null
     }) {
@@ -864,42 +850,50 @@ export default class ActorImporter {
                     moduleLib.vttWarn(`Current feat (${featId}) from key ${repeatingKey} has no name on property ${options.keyName}.`, true)
                     continue
                 }
-                const featNameForSearch = moduleLib.getNameForSearch(currFeat[options.keyName].current)
+                const featNamesForSearch = moduleLib.getNamesForSearch(currFeat[options.keyName].current, options.strict ?? false)
                 var found = false
 
                 for (let cpdIdx = 0; cpdIdx < compendiums.length; cpdIdx++) {
                     const compendium = compendiums[cpdIdx];
-                    var nameSearch = featNameForSearch.name
 
-                    if (options.correspondances) {
-                        var corr = options.correspondances.filter(c => c.key == featNameForSearch.name)
-                        if (corr.length == 1) {
-                            nameSearch = corr[0].value
-                        } else {
-                            nameSearch = featNameForSearch.name
+                    for (let idx = 0; idx < featNamesForSearch.names.length; idx++) {
+                        var nameSearch = featNamesForSearch.names[idx];
+
+                        if (options.correspondances) {
+                            var corr = options.correspondances.filter(c => c.key == featNamesForSearch.names[0])
+                            if (corr.length == 1) {
+                                nameSearch = corr[0].value
+                                featNamesForSearch.hasFlavorName = true
+                            }
+                        }
+
+                        var mfIndex = compendium.index.find(m => m.name.toLowerCase() === nameSearch && typeList.includes(m.type))
+
+                        if (mfIndex) {
+                            found = true
+
+                            moduleLib.vttLog(`${nameSearch} found in compendium ${compendium.metadata.name}`)
+
+                            var feature = await compendium.getDocument(mfIndex._id)
+                            var currObject = foundry.utils.deepClone(feature.toObject())
+
+                            var transformOptions = featNamesForSearch.hasFlavorName ? { flavorName: currFeat[options.keyName].current } : {}
+
+                            transformAction(this.content, currObject, currFeat, transformOptions)
+                            embedQueue.push(currObject)
+
+                            if (currFeat['itemattackid']) {
+                                moduleLib.vttLog(`${currFeat[options.keyName].current} has attackid`)
+                                this.usedAttacks.push(currFeat['itemattackid'].current)
+                            }
+                            break
                         }
                     }
 
-                    var mfIndex = compendium.index.find(m => m.name.toLowerCase() === nameSearch)
-
-                    if (mfIndex) {
-                        var feature = await compendium.getDocument(mfIndex._id)
-                        var currObject = foundry.utils.deepClone(feature.toObject())
-
-                        var transformOptions = featNameForSearch.hasFlavorName ? { flavorName: currFeat[options.keyName].current } : {}
-
-                        transformAction(this.content, currObject, currFeat, transformOptions)
-                        embedQueue.push(currObject)
-                        found = true
-
-                        if (currFeat['itemattackid']) {
-                            moduleLib.vttLog(`${currFeat[options.keyName].current} has attackid`)
-                            console.log(this.repeatingFeatures['attack'][currFeat['itemattackid'].current])
-
-                            this.usedAttacks.push(currFeat['itemattackid'].current)
-                        }
+                    if (found) {
                         break
                     }
+
                 }
                 if (!found) {
                     moduleLib.vttLog(`EmbedFromRepeating - ${currFeat[options.keyName].current} not found in compendiums of type ${repeatingKey} - Adding it to creation queue`)
@@ -926,22 +920,12 @@ export default class ActorImporter {
 
         return {
             name: tokenContent.name,
-            vision: true,
-            dimSight: tokenContent.night_vision_distance ?? this.darkvision,
-            img: tokenContent.imgsrc,
+            sight: { enabled: true, visionMode: 'basic' },
+            // dimSight: tokenContent.night_vision_distance ?? this.darkvision,
+            texture: {
+                src: tokenContent.imgsrc
+            },
             displayName: tokenContent.showname ? CONST.TOKEN_DISPLAY_MODES.ALWAYS : CONST.TOKEN_DISPLAY_MODES.NONE
         }
     }
-
-    // async updateToken(tokenInfos) {
-    //     var actorToken = this.actor.data.token;
-    //     await actorToken.update({
-    //         name: tokenInfos.name,
-    //         vision: true,
-    //         dimSight: tokenInfos.night_vision_distance ?? this.darkvision,
-    //         img: tokenInfos.imgsrc,
-    //         displayName: tokenInfos.showname ? CONST.TOKEN_DISPLAY_MODES.ALWAYS : CONST.TOKEN_DISPLAY_MODES.NONE
-    //     });
-    // }
-
 }
