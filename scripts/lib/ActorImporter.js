@@ -396,29 +396,6 @@ export default class ActorImporter {
         return entry.name.substring(0, entry.name.length - suffix.length);
     }
 
-    // async getAndPrepareItems() {
-    //     var {
-    //         compendiumEntries,
-    //         notFoundEntries
-    //     } = await this.manageCompendium('equipment', '_itemname', '_itemname')
-
-    //     if (notFoundEntries.length > 0) {
-    //         moduleLib.vttLog(notFoundEntries.length + ' items were not found in compendiums')
-
-    //         for (let index = 0; index < notFoundEntries.length; index++) {
-    //             const notFoundItemKey = notFoundEntries[index];
-    //             var itemInfos = this.getAttribsStartsWith(notFoundItemKey)
-
-    //             var newItem = new ItemFormat()
-    //             // newItem.name = 
-    //             //moduleLib.vttLog(`${itemInfos.length} items were not found`)
-    //             // console.log(itemInfos)
-    //         }
-    //     }
-
-    //     return compendiumEntries
-    // }
-
     extractRepeatings() {
         var input = 'repeating'
 
@@ -554,7 +531,7 @@ export default class ActorImporter {
 
     async setClass(className, subClassName, classLevel) {
         var useClass = null
-        var foundSubClass = false
+        var subClass = null
 
         var lowerClassName = className.toLowerCase()
         var lowerSubClassName = subClassName.toLowerCase()
@@ -564,38 +541,27 @@ export default class ActorImporter {
         moduleLib.vttLog(`Looking up ${className} (${subClassName}) in compendiums`)
         for (let compIndex = 0; compIndex < classCompendium.length; compIndex++) {
             const compendium = classCompendium[compIndex];
-            const classesFromComp = compendium.index.filter(c => c.name.toLowerCase() === lowerClassName || c.name.toLowerCase().includes(lowerClassName))
+            const classesFromComp = compendium.index.filter(c =>    (c.type === 'class' && c.name.toLowerCase() === lowerClassName) ||
+                                                                    (c.type === 'subclass' && c.name.toLowerCase() === lowerSubClassName) )
             moduleLib.vttLog(`Found ${classesFromComp.length} matching classes on compendium ${compendium.metadata.name}`)
             if (classesFromComp.length > 0) {
                 for (let index = 0; index < classesFromComp.length; index++) {
                     const classFromComp = classesFromComp[index];
                     const compendiumClass = await compendium.getDocument(classFromComp._id)
 
-                    if (compendiumClass.subclass === subClassName) {
-                        moduleLib.vttLog(`Found Subclass ${compendiumClass.subclass}`)
+                    if (compendiumClass.type === 'class') {
+                        moduleLib.vttLog(`Found base class ${className}`)
                         useClass = compendiumClass
-                        foundSubClass = true
                         break
                     }
-                    if (!compendiumClass.subclass || compendiumClass.subclass === '') {
-                        if (compendiumClass.name.toLowerCase().includes(lowerSubClassName)) {
-                            moduleLib.vttLog(`Found class & subclass by name ${className} (${subClassName}) as ${compendiumClass.name}`)
-                            useClass = compendiumClass
-                            foundSubClass = true
-                            break
-                        } else if (compendiumClass.name.toLowerCase() === lowerClassName) {
-                            moduleLib.vttLog('Found base class')
-                            useClass = compendiumClass
-                        } else {
-                            moduleLib.vttLog(`Class ${compendiumClass.name} is neither base class nor subclass, discarding`)
-                        }
+
+                    if (compendiumClass.type === 'subclass') {
+                        moduleLib.vttLog(`Found sub class ${subClassName}`)
+                        subClass = compendiumClass
+                        break
                     }
                 }
             }
-            if (foundSubClass) {
-                break
-            }
-
         }
 
         if (!useClass) {
@@ -604,35 +570,16 @@ export default class ActorImporter {
         }
 
         var newClass = this.getOverridenClassData(className, useClass, subClassName, classLevel)
-        await this.actor.createEmbeddedDocuments('Item', [newClass])
+        var newSubClass = this.getOverridenClassData(subClassName, subClass, subClassName)
+
+        await this.actor.createEmbeddedDocuments('Item', [newClass, newSubClass])
 
         return newClass
     }
 
     getOverridenClassData(className, sourceClass, subClassName, level = 1) {
-        // if (!sourceClass.spellcasting) {
-        //     sourceClass.spellcasting = {
-        //         progression: "none",
-        //         ability: ""
-        //     }
-        // }
         var clonedClass = foundry.utils.deepClone(sourceClass.toObject())
-        // {
-        //     name: className,
-        //     type: "class",
-        //     img: sourceClass.img,
-        //     system: sourceClass.data
-        // }
         clonedClass.system.levels = level
-        // clonedClass.subclass = subClassName
-
-        // if (!clonedClass.spellcasting) {
-        //     clonedClass.spellcasting = {
-        //         progression: "none",
-        //         ability: ""
-        //     }
-        // }
-
         return clonedClass;
     }
 
