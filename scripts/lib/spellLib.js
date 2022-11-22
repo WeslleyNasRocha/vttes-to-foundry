@@ -204,13 +204,13 @@ export function isPactMagic(spellInfos) {
     return spellInfos.spellclass ? spellInfos.spellclass.current.toLowerCase().indexOf('warlock') >= 0 : false;
 }
 
-export function getPreparation(spellInfos) {
+export function getPreparation(spellInfos, spellLevel = null) {
     var preparation = {
         mode: 'prepared',
         prepared: spellInfos.spellprepared ? spellInfos.spellprepared.current == '1' : false
     }
 
-    if (this.isPactMagic(spellInfos) && spellInfos.spelllevel.current != 'cantrip') {
+    if (this.isPactMagic(spellInfos) && spellLevel > 0) {
         preparation = {
             mode: 'pact',
             prepared: true
@@ -230,6 +230,14 @@ export function getPreparation(spellInfos) {
 export function getSpellLevel(spellInfos, key) {
     if (spellInfos.spelllevel) {
         return spellInfos.spelllevel.current == 'cantrip' ? 0 : parseInt(spellInfos.spelllevel.current)
+    }
+
+    if (!key) {
+        if (!spellInfos.key) {
+            moduleLib.vttError(`Value key is not set in spell infos, aborting.`, true)
+            throw new Error('Value key is not set in spell infos, aborting');
+        }
+        key = spellInfos.key
     }
 
     var lvl = key.substring(key.indexOf('-') + 1)

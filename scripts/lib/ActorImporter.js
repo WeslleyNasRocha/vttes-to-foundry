@@ -438,35 +438,10 @@ export default class ActorImporter {
         }
     }
 
-    async getAndPrepareSpells() {
-        var {
-            compendiumEntries,
-            notFoundEntries
-        } = await this.manageCompendium('spell', '_spellname', '_spellname')
-
-        if (notFoundEntries.length > 0) {
-            moduleLib.vttLog(notFoundEntries.length + ' spells were not found in compendiums')
-            moduleLib.vttLog(notFoundEntries)
-
-            notFoundEntries.forEach(entry => {
-                var entryKeyCut = entry.indexOf('_-');
-                var key = entry.substring(entryKeyCut + 1);
-
-                moduleLib.vttLog(key + ' goes to level ' + this.spellsLevelList[key].level);
-
-                var spellInfos = this.repeatingFeatures['spell-' + this.spellsLevelList[key].level][key];
-                var spell = this.createSpell(spellInfos);
-                compendiumEntries.push(spell)
-            })
-        }
-
-        return compendiumEntries
-    }
-
     applySpellTranformation(content, objectToTransform, linkedFeature, options) {
         moduleLib.setItemGlobalOptions(options, objectToTransform);
 
-        objectToTransform.preparation = spellLib.getPreparation(linkedFeature)
+        objectToTransform.system.preparation = spellLib.getPreparation(linkedFeature, objectToTransform.system.level)
     }
 
 
@@ -477,6 +452,8 @@ export default class ActorImporter {
             moduleLib.vttWarn(`Spell ${spellInfos.spellname.current} cannot be imported (reason : no spell casting time)`, true)
             return null
         }
+
+        spellInfos.key = key
 
         var activation = spellLib.getSpellActivation(spellInfos);
         var spellDuration = spellLib.getSpellDuration(spellInfos);
@@ -489,9 +466,9 @@ export default class ActorImporter {
         var materials = spellLib.getMaterials(spellInfos);
         var save = spellLib.getSpellSave(spellInfos);
         var school = spellLib.getSpellSchool(spellInfos);
-        var preparation = spellLib.getPreparation(spellInfos)
-        var icon = spellLib.getIcon(spellInfos)
         var spellLevel = spellLib.getSpellLevel(spellInfos, key)
+        var preparation = spellLib.getPreparation(spellInfos, spellLevel)
+        var icon = spellLib.getIcon(spellInfos)
 
         var newSpell = {
             type: "spell",
