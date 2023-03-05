@@ -553,7 +553,7 @@ export default class ActorImporter {
         } else {
           await this.actor.createEmbeddedDocuments('Item', [newClass])
         }
-        return newClasses
+        return newClass
     }
 
     getOverridenClassData(className, sourceClass, subClassName, level = 1) {

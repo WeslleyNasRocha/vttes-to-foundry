@@ -180,7 +180,7 @@ export default class PCActorImport extends ActorImporter {
 
                 const wType = DND5E.weaponProficienciesMap[item.system.weaponType];
 
-                if (this.actor.system.traits.weaponProf.value.includes(wType) || this.actor.system.traits.weaponProf.value.includes(itemNameForSearch)) {
+                if (this.actor.system.traits.weaponProf.value.has(wType) || this.actor.system.traits.weaponProf.value.has(itemNameForSearch)) {
                     item.system.proficient = true;
                 }
             }
